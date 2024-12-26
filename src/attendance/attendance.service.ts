@@ -1,7 +1,7 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Attendance } from './entities/attendance.entity';
+import { Attendance } from '../attendance/entities/attendance.entity';
 import { User } from '../user/entities/user.entity';
 
 @Injectable()
