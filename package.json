@@ -35,9 +35,8 @@
     "express-formidable": "^1.2.0",
     "express-session": "^1.18.1",
     "mysql2": "^3.12.0",
-    "reflect-metadata": "^0.2.2",
+    "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.20"
   },
   "devDependencies": {
