@@ -12,7 +12,7 @@ export class UserService {
       const user = this.userRepo.create({ name, studentNumber });
       return await this.userRepo.save(user);
     } catch (error) {
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (error === 'ER_DUP_ENTRY') {
         throw new ConflictException('Student number already exists');
       }
       throw error;

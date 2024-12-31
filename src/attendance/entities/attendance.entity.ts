@@ -1,17 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn, BaseEntity } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
 @Entity()
-export class Attendance {
+export class Attendance extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' }) // 외래 키
+  @ManyToOne(() => User, (user) => user.attendances)
+  @JoinColumn({ name: 'userId' })
   user: User;
 
   @Column()
-  userId: number; // 외래 키 필드
+  userId: number;
 
   @Column()
   location: string;
@@ -20,5 +20,5 @@ export class Attendance {
   clockInTime: Date;
 
   @Column()
-  date: string; // 중복 방지를 위한 날짜 필드
+  date: string;
 }
