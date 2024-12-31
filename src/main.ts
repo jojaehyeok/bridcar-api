@@ -1,9 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors(); // CORS 설정 (Next.js와 연동 시 필요)
-  await app.listen(4000); // 4000번 포트로 서버 실행
+
+  // Swagger 설정
+  const config = new DocumentBuilder()
+    .setTitle('Attendance API')
+    .setDescription('API for managing attendance')
+    .setVersion('1.0')
+    .addTag('users')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  await app.listen(4000);
 }
 bootstrap();
