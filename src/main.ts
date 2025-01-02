@@ -19,7 +19,7 @@ async function bootstrap() {
 
   // Swagger 문서 생성 및 경로 설정
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document); // Swagger UI: /api
+  SwaggerModule.setup('swagger', app, document); // Swagger UI: /api
 
   // 글로벌 프리픽스 설정
   app.setGlobalPrefix('api'); // 모든 경로 앞에 '/api'가 추가됨
