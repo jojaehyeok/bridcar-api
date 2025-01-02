@@ -22,14 +22,26 @@ export class AttendanceService {
    * @returns 저장된 출석 데이터
    */
   async clockIn(name: string, studentNumber: string, location: string): Promise<Attendance> {
+    console.log(`clockIn 호출됨: name=${name}, studentNumber=${studentNumber}, location=${location}`);
+
     return this.dataSource.transaction(async (manager) => {
       const user = await this.findUser(manager, name, studentNumber);
 
+      if (!user) {
+        console.error(`사용자 조회 실패: name=${name}, studentNumber=${studentNumber}`);
+        throw new NotFoundException('사용자가 등록되지 않았습니다.');
+      }
+
+      console.log(`사용자 조회 성공: ${JSON.stringify(user)}`);
+
       // 오늘 날짜 기준으로 이미 출석 기록이 있는지 확인
       const today = this.getCurrentDate();
+      console.log(`오늘 날짜: ${today}`);
+
       const existingRecord = await this.checkExistingAttendance(manager, user.id, today);
 
       if (existingRecord) {
+        console.error(`이미 출석 기록이 존재함: userId=${user.id}, date=${today}`);
         throw new ConflictException('오늘 이미 출석하셨습니다.');
       }
 
@@ -41,7 +53,12 @@ export class AttendanceService {
         clockInTime: new Date(),
       });
 
-      return manager.save(Attendance, attendance);
+      console.log(`출석 데이터 생성: ${JSON.stringify(attendance)}`);
+
+      const savedAttendance = await manager.save(Attendance, attendance);
+      console.log(`출석 데이터 저장 완료: ${JSON.stringify(savedAttendance)}`);
+
+      return savedAttendance;
     });
   }
 
@@ -54,9 +71,12 @@ export class AttendanceService {
    */
   private async findUser(manager: any, name: string, studentNumber: string): Promise<User> {
     const user = await manager.findOne(User, { where: { name, studentNumber } });
+
     if (!user) {
+      console.error(`사용자 없음: name=${name}, studentNumber=${studentNumber}`);
       throw new NotFoundException('사용자가 등록되지 않았습니다.');
     }
+
     return user;
   }
 
@@ -68,7 +88,15 @@ export class AttendanceService {
    * @returns 출석 기록 데이터 또는 null
    */
   private async checkExistingAttendance(manager: any, userId: number, date: string): Promise<Attendance | null> {
-    return manager.findOne(Attendance, { where: { userId, date } });
+    const record = await manager.findOne(Attendance, { where: { userId, date } });
+
+    if (record) {
+      console.log(`기존 출석 기록 확인됨: ${JSON.stringify(record)}`);
+    } else {
+      console.log(`기존 출석 기록 없음: userId=${userId}, date=${date}`);
+    }
+
+    return record;
   }
 
   /**
