@@ -7,6 +7,7 @@ export class AttendanceController {
 
   @Post()
   async clockIn(@Body() body: { name: string; studentNumber: string; location: string }) {
+    console.log(body.name)
     return this.attendanceService.clockIn(body.name, body.studentNumber, body.location);
   }
 }
