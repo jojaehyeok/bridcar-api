@@ -106,4 +106,28 @@ export class AttendanceService {
   private getCurrentDate(): string {
     return new Date().toISOString().split('T')[0];
   }
+
+  
+  /**
+   * 특정 날짜의 출석 데이터를 가져옵니다.
+   * @param date - YYYY-MM-DD 형식의 날짜
+   * @returns 출석 데이터 배열 또는 에러 메시지 객체
+   */
+  async getAttendanceByDate(date: string): Promise<
+    { userId: number; name: string; studentNumber: string; location: string; clockInTime: Date; date: string; }[]
+  > {
+    const attendanceRecords = await this.attendanceRepository.find({
+      where: { date },
+      relations: ['user'],
+    });
+
+    return attendanceRecords.map((record) => ({
+      userId: record.userId,
+      name: record.user.name,
+      studentNumber: record.user.studentNumber,
+      location: record.location,
+      clockInTime: record.clockInTime,
+      date: record.date,
+    }));
+  }
 }
