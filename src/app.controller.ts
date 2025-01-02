@@ -9,6 +9,4 @@ export class AppController {
   getExample(): string {
     return 'This is an example response!';
   }
-  
-
 }
