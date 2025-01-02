@@ -30,37 +30,44 @@ export class AttendanceController {
    * @param res - Express Response 객체
    */
    @Get('export')
-   @ApiOperation({ summary: '날짜별 출석 데이터를 CSV로 내보내기' })
+   @ApiOperation({ summary: '날짜별 출석 데이터를 CSV로 내보내기 (KST 시간으로 변환)' })
    async exportAttendanceByDate(@Query('date') date: string, @Res() res: ExpressResponse) {
      if (!date) {
        throw new NotFoundException('날짜를 제공해야 합니다.');
      }
  
-     // AttendanceService를 통해 날짜별 출석 데이터를 가져옵니다.
      const attendanceRecords = await this.attendanceService.getAttendanceByDate(date);
  
-     // 타입 가드: attendanceRecords가 배열인지 확인
      if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
        throw new NotFoundException(`No attendance records found for the date: ${date}`);
      }
  
-     // CSV 변환기 생성
+     // 한국 표준시로 변환
+     const formatter = new Intl.DateTimeFormat('ko-KR', {
+       timeZone: 'Asia/Seoul',
+       dateStyle: 'medium',
+       timeStyle: 'short',
+     });
+ 
+     const recordsWithKST = attendanceRecords.map((record) => ({
+       ...record,
+       clockInTime: formatter.format(new Date(record.clockInTime)),
+     }));
+ 
      const csvStringifier = createObjectCsvStringifier({
        header: [
          { id: 'userId', title: 'User ID' },
          { id: 'name', title: 'Name' },
          { id: 'studentNumber', title: 'Student Number' },
          { id: 'location', title: 'Location' },
-         { id: 'clockInTime', title: 'Clock-In Time' },
+         { id: 'clockInTime', title: 'Clock-In Time (KST)' },
          { id: 'date', title: 'Date' },
        ],
      });
  
-     // CSV 데이터 생성
      const csvData =
-       csvStringifier.getHeaderString() + csvStringifier.stringifyRecords(attendanceRecords);
+       csvStringifier.getHeaderString() + csvStringifier.stringifyRecords(recordsWithKST);
  
-     // 응답 헤더 및 파일 전송
      res.setHeader('Content-Type', 'text/csv');
      res.setHeader('Content-Disposition', `attachment; filename=attendance_${date}.csv`);
      res.send(csvData);
