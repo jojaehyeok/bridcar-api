@@ -27,6 +27,9 @@ export class Attendance extends BaseEntity {
   @CreateDateColumn()
   clockInTime: Date;
 
+  @Column({ type: 'timestamp', nullable: true }) // ✅ 조퇴 시간 추가
+  clockOutTime?: Date;
+
   @Column()
   date: string;
 }

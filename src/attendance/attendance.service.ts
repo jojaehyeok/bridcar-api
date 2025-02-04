@@ -1,108 +1,137 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, IsNull, Not } from 'typeorm';
+import { Attendance } from './entities/attendance.entity';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class AttendanceService {
-  private attendanceRecords: any[] = [];
-  private leaveRecords: any[] = [];
+  constructor(
+    @InjectRepository(Attendance)
+    private readonly attendanceRepository: Repository<Attendance>,
+
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
 
   /**
-   * 현재 시간을 한국(KST) 기준으로 변환 (ISO 형식 유지)
-   */
-  private getCurrentKSTTime(): string {
-    const now = new Date();
-    now.setHours(now.getHours() + 9); // UTC +9로 변환
-    return now.toISOString();
-  }
-
-  /**
-   * 출석 기록 추가 (KST 시간 저장)
+   * 출석 기록 추가 (DB 저장)
    */
   async clockIn(name: string, studentNumber: string, location: string) {
-    const now = new Date();
-    const koreaTime = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9로 변환
-    const today = koreaTime.toISOString().split("T")[0]; // YYYY-MM-DD 형식
-    const currentHour = koreaTime.getHours();
-  
-    // ⏰ 9시~18시까지만 출석 가능
-    if (currentHour < 9 || currentHour >= 18) {
-      return {
-        status: 400,
-        message: "출석 가능 시간은 오전 9시부터 오후 6시까지입니다.",
-      };
-    }
-  
-    // 오늘 이미 출석했는지 확인
-    const existingRecord = this.attendanceRecords.find(
-      (record) => record.studentNumber === studentNumber && record.date === today
-    );
-  
-    if (existingRecord) {
-      return { status: 400, message: "이미 오늘 출석하셨습니다." };
-    }
-  
-    // 조퇴 후 다시 출석하는 것을 막기
-    const hasClockedOut = this.leaveRecords.some(
-      (record) => record.studentNumber === studentNumber && record.date === today
-    );
-  
-    if (hasClockedOut) {
-      return { status: 400, message: "이미 조퇴한 상태에서는 다시 출석할 수 없습니다." };
-    }
-  
-    const record = {
-      userId: Date.now(),
-      name,
-      studentNumber,
-      location,
-      clockInTime: koreaTime.toISOString(),
-      date: today,
-    };
-  
-    this.attendanceRecords.push(record);
-    return { status: 200, data: record };
-  }
-  
-  /**
-   * 조퇴 기록 추가 (KST 시간 저장)
-   */
-  async clockOut(name: string, studentNumber: string, location: string) {
-    const koreaTime = new Date(new Date().getTime() + 9 * 60 * 60 * 1000); // UTC+9 변환
+    const koreaTime = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
     const today = koreaTime.toISOString().split("T")[0];
-  
-    // 🛑 조퇴할 때 출석 가능 시간(9~18시) 제한 제거
-    const existingRecord = this.attendanceRecords.find(
-      (record) => record.studentNumber === studentNumber && record.date === today
-    );
-  
-    if (!existingRecord) {
-      return { status: 400, message: "출석 기록이 없어 조퇴할 수 없습니다." };
+    const currentHour = koreaTime.getHours();
+
+    if (currentHour < 9 || currentHour >= 18) {
+      throw new HttpException("출석 가능 시간은 오전 9시부터 오후 6시까지입니다.", HttpStatus.BAD_REQUEST);
     }
-  
-    const record = {
-      userId: Date.now(),
-      name,
-      studentNumber,
+
+    // ✅ studentNumber로 userId 조회
+    const user = await this.userRepository.findOne({ where: { studentNumber } });
+    if (!user) {
+      throw new HttpException("해당 수강번호의 사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+    }
+
+    // ✅ 기존 출석 기록 확인
+    const existingRecord = await this.attendanceRepository.findOne({
+      where: { userId: user.id, date: today },
+    });
+
+    if (existingRecord) {
+      throw new HttpException("이미 오늘 출석하셨습니다.", HttpStatus.CONFLICT);
+    }
+
+    // ✅ 출석 정보 저장
+    const attendance = this.attendanceRepository.create({
+      userId: user.id,
       location,
-      clockOutTime: koreaTime.toISOString(),
+      clockInTime: koreaTime,
       date: today,
-    };
-  
-    this.leaveRecords.push(record);
-    return { status: 200, data: record };
-  }
-  
-  /**
-   * 특정 날짜의 출석자 목록 조회 (KST 변환)
-   */
-  async getAttendanceByDate(date: string) {
-    return this.attendanceRecords.filter((record) => record.date === date);
+    });
+
+    await this.attendanceRepository.save(attendance);
+    return { status: 200, data: attendance };
   }
 
   /**
-   * 특정 날짜의 조퇴자 목록 조회 (KST 변환)
+   * 조퇴 기록 추가
+   */
+  async clockOut(name: string, studentNumber: string, location: string) {
+    const koreaTime = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+    const today = koreaTime.toISOString().split("T")[0];
+
+    // ✅ studentNumber로 userId 조회
+    const user = await this.userRepository.findOne({ where: { studentNumber } });
+    if (!user) {
+      throw new HttpException("해당 수강번호의 사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+    }
+
+    // ✅ 기존 출석 기록 확인
+    const existingRecord = await this.attendanceRepository.findOne({
+      where: { userId: user.id, date: today },
+    });
+
+    if (!existingRecord) {
+      throw new HttpException("출석 기록이 없어 조퇴할 수 없습니다.", HttpStatus.BAD_REQUEST);
+    }
+
+    // ✅ 이미 조퇴한 경우 중복 조퇴 방지
+    if (existingRecord.clockOutTime) {
+      throw new HttpException("이미 조퇴하셨습니다.", HttpStatus.CONFLICT);
+    }
+
+    // ✅ 조퇴 정보 저장
+    existingRecord.clockOutTime = koreaTime;
+    await this.attendanceRepository.save(existingRecord);
+
+    return { status: 200, data: existingRecord };
+  }
+
+  /**
+   * 특정 날짜의 출석자 목록 조회
+   */
+  async getAttendanceByDate(date: string) {
+    const records = await this.attendanceRepository.find({
+      where: { date },
+      relations: ['user'],
+    });
+
+    if (!records.length) {
+      throw new NotFoundException(`해당 날짜(${date})에 대한 출석 기록이 없습니다.`);
+    }
+
+    return records.map((record) => ({
+      userId: record.user.id,
+      name: record.user.name,
+      studentNumber: record.user.studentNumber,
+      location: record.location,
+      clockInTime: record.clockInTime,
+      date: record.date,
+      clockOutTime: record.clockOutTime || null,
+    }));
+  }
+
+  /**
+   * 특정 날짜의 조퇴자 목록 조회
    */
   async getLeavesByDate(date: string) {
-    return this.leaveRecords.filter((record) => record.date === date);
+    const records = await this.attendanceRepository.find({
+      where: { date, clockOutTime: Not(IsNull()) },
+      relations: ['user'],
+    });
+
+    if (!records.length) {
+      throw new NotFoundException(`해당 날짜(${date})에 대한 조퇴 기록이 없습니다.`);
+    }
+
+    return records.map((record) => ({
+      userId: record.user.id,
+      name: record.user.name,
+      studentNumber: record.user.studentNumber,
+      location: record.location,
+      clockOutTime: record.clockOutTime,
+      date: record.date,
+    }));
   }
 
   /**
@@ -110,10 +139,10 @@ export class AttendanceService {
    */
   async getWeeklyAttendance() {
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setHours(sevenDaysAgo.getHours() + 9); // UTC → KST 변환
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7); // 7일 전 날짜 계산
+    sevenDaysAgo.setHours(sevenDaysAgo.getHours() + 9);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    return this.attendanceRecords.filter((record) => new Date(record.date) >= sevenDaysAgo);
+    return this.attendanceRepository.find({ where: { date: Not(IsNull()) }, relations: ['user'] });
   }
 
   /**
@@ -121,9 +150,12 @@ export class AttendanceService {
    */
   async getWeeklyLeaves() {
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setHours(sevenDaysAgo.getHours() + 9); // UTC → KST 변환
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7); // 7일 전 날짜 계산
+    sevenDaysAgo.setHours(sevenDaysAgo.getHours() + 9);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    return this.leaveRecords.filter((record) => new Date(record.date) >= sevenDaysAgo);
+    return this.attendanceRepository.find({
+      where: { date: Not(IsNull()), clockOutTime: Not(IsNull()) },
+      relations: ['user'],
+    });
   }
 }
