@@ -1,23 +1,19 @@
+import { IsString, IsArray, ArrayMinSize } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, Length, Matches } from 'class-validator';
 
 export class CreateUserDto {
-  @ApiProperty({
-    description: 'Name of the user (can include Korean characters)',
-    example: '홍길동',
-  })
+  @ApiProperty({ example: '홍길동', description: '사용자 이름' })
   @IsString()
-  @IsNotEmpty({ message: 'Name is required and cannot be empty' })
-  @Length(1, 50, { message: 'Name must be between 1 and 50 characters long' })
   name: string;
 
-  @ApiProperty({
-    description: 'Unique student number (alphanumeric, max 20 characters)',
-    example: '12345678',
-  })
+  @ApiProperty({ example: '20230001', description: '학번', uniqueItems: true })
   @IsString()
-  @IsNotEmpty({ message: 'Student number is required and cannot be empty' })
-  @Length(1, 20, { message: 'Student number must be between 1 and 20 characters long' })
-  @Matches(/^[0-9]*$/, { message: 'Student number must only contain numbers' })
   studentNumber: string;
+}
+
+export class CreateMultipleUsersDto {
+  @ApiProperty({ type: [CreateUserDto], description: '사용자 리스트' })
+  @IsArray()
+  @ArrayMinSize(1)
+  users: CreateUserDto[];
 }
