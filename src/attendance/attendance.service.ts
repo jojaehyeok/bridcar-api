@@ -66,18 +66,31 @@ export class AttendanceService {
    * 조퇴 기록 추가 (KST 시간 저장)
    */
   async clockOut(name: string, studentNumber: string, location: string) {
+    const koreaTime = new Date(new Date().getTime() + 9 * 60 * 60 * 1000); // UTC+9 변환
+    const today = koreaTime.toISOString().split("T")[0];
+  
+    // 🛑 조퇴할 때 출석 가능 시간(9~18시) 제한 제거
+    const existingRecord = this.attendanceRecords.find(
+      (record) => record.studentNumber === studentNumber && record.date === today
+    );
+  
+    if (!existingRecord) {
+      return { status: 400, message: "출석 기록이 없어 조퇴할 수 없습니다." };
+    }
+  
     const record = {
       userId: Date.now(),
       name,
       studentNumber,
       location,
-      clockOutTime: this.getCurrentKSTTime(), // KST 기준 저장
-      date: this.getCurrentKSTTime().split('T')[0], // YYYY-MM-DD 형식
+      clockOutTime: koreaTime.toISOString(),
+      date: today,
     };
+  
     this.leaveRecords.push(record);
-    return record;
+    return { status: 200, data: record };
   }
-
+  
   /**
    * 특정 날짜의 출석자 목록 조회 (KST 변환)
    */
