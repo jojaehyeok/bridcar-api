@@ -19,12 +19,16 @@ export class AttendanceService {
    */
   async clockIn(name: string, studentNumber: string, location: string) {
     const now = new Date();
-    const today = now.toISOString().split("T")[0]; // YYYY-MM-DD 형식
-    const currentHour = now.getHours();
+    const koreaTime = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9로 변환
+    const today = koreaTime.toISOString().split("T")[0]; // YYYY-MM-DD 형식
+    const currentHour = koreaTime.getHours();
   
     // ⏰ 9시~18시까지만 출석 가능
     if (currentHour < 9 || currentHour >= 18) {
-      throw new Error("출석 가능 시간은 오전 9시부터 오후 6시까지입니다.");
+      return {
+        status: 400,
+        message: "출석 가능 시간은 오전 9시부터 오후 6시까지입니다.",
+      };
     }
   
     // 오늘 이미 출석했는지 확인
@@ -33,7 +37,7 @@ export class AttendanceService {
     );
   
     if (existingRecord) {
-      throw new Error("이미 오늘 출석하셨습니다.");
+      return { status: 400, message: "이미 오늘 출석하셨습니다." };
     }
   
     // 조퇴 후 다시 출석하는 것을 막기
@@ -42,7 +46,7 @@ export class AttendanceService {
     );
   
     if (hasClockedOut) {
-      throw new Error("이미 조퇴한 상태에서는 다시 출석할 수 없습니다.");
+      return { status: 400, message: "이미 조퇴한 상태에서는 다시 출석할 수 없습니다." };
     }
   
     const record = {
@@ -50,13 +54,14 @@ export class AttendanceService {
       name,
       studentNumber,
       location,
-      clockInTime: now.toISOString(),
+      clockInTime: koreaTime.toISOString(),
       date: today,
     };
   
     this.attendanceRecords.push(record);
-    return record;
+    return { status: 200, data: record };
   }
+  
   /**
    * 조퇴 기록 추가 (KST 시간 저장)
    */
