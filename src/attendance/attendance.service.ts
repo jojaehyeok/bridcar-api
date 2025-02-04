@@ -18,18 +18,45 @@ export class AttendanceService {
    * 출석 기록 추가 (KST 시간 저장)
    */
   async clockIn(name: string, studentNumber: string, location: string) {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0]; // YYYY-MM-DD 형식
+    const currentHour = now.getHours();
+  
+    // ⏰ 9시~18시까지만 출석 가능
+    if (currentHour < 9 || currentHour >= 18) {
+      throw new Error("출석 가능 시간은 오전 9시부터 오후 6시까지입니다.");
+    }
+  
+    // 오늘 이미 출석했는지 확인
+    const existingRecord = this.attendanceRecords.find(
+      (record) => record.studentNumber === studentNumber && record.date === today
+    );
+  
+    if (existingRecord) {
+      throw new Error("이미 오늘 출석하셨습니다.");
+    }
+  
+    // 조퇴 후 다시 출석하는 것을 막기
+    const hasClockedOut = this.leaveRecords.some(
+      (record) => record.studentNumber === studentNumber && record.date === today
+    );
+  
+    if (hasClockedOut) {
+      throw new Error("이미 조퇴한 상태에서는 다시 출석할 수 없습니다.");
+    }
+  
     const record = {
       userId: Date.now(),
       name,
       studentNumber,
       location,
-      clockInTime: this.getCurrentKSTTime(), // KST 기준 저장
-      date: this.getCurrentKSTTime().split('T')[0], // YYYY-MM-DD 형식
+      clockInTime: now.toISOString(),
+      date: today,
     };
+  
     this.attendanceRecords.push(record);
     return record;
   }
-
   /**
    * 조퇴 기록 추가 (KST 시간 저장)
    */
