@@ -5,6 +5,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AttendanceModule } from './attendance/attendance.module';
 import { UserModule } from './user/user.module';
 import { User } from './user/entities/user.entity';
+import { MeasurementModule } from './measurement/measurement.module';
+import { MailModule } from './mail/mail.module';
+import { ConfigModule } from '@nestjs/config';
 
 const DEFAULT_ADMIN = {
   email: 'admin@example.com',
@@ -20,7 +23,7 @@ const authenticate = async (email: string, password: string) => {
 
 @Module({
   imports: [
-    
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
     type: 'mysql',
     host: 'localhost',
@@ -67,6 +70,8 @@ const authenticate = async (email: string, password: string) => {
         }),
       }),
     ),
+    MeasurementModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,4 +1,4 @@
-import { IsString, IsArray, ArrayMinSize } from 'class-validator';
+import { IsString, IsArray, ArrayMinSize, IsUUID, IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {

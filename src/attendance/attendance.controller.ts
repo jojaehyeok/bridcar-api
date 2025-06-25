@@ -45,4 +45,5 @@ export class AttendanceController {
   async getWeeklyLeaves() {
     return this.attendanceService.getWeeklyLeaves();
   }
+  
 }

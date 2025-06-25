@@ -13,7 +13,8 @@ export class UserController {
    * 여러 사용자 등록
    * @param createUsersDto - 사용자 생성 DTO 배열
    * @returns 생성된 사용자 목록
-   */
+  */
+
   @Post('register-multiple')
   @ApiOperation({ summary: 'Register multiple users at once' })
   @ApiResponse({
